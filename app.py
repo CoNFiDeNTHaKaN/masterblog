@@ -1,0 +1,105 @@
+import json
+from flask import Flask, render_template, request, redirect, url_for
+
+app = Flask(__name__)
+
+
+def fetch_post_by_id(post_id):
+    with open('posts.json', 'r', encoding='utf-8') as file:
+        blog_posts = json.load(file)
+    for post in blog_posts:
+        if post['id'] == post_id:
+            return post
+    return None
+
+
+@app.route('/')
+def index():
+    with open('posts.json', 'r', encoding='utf-8') as file:
+        blog_posts = json.load(file)
+
+    return render_template('index.html', posts=blog_posts)
+
+
+@app.route('/add', methods=['GET', 'POST'])
+def add():
+    if request.method == 'POST':
+        with open('posts.json', 'r', encoding='utf-8') as file:
+            blog_posts = json.load(file)
+
+        new_id = max([post['id'] for post in blog_posts], default=0) + 1
+        author = request.form.get('author')
+        title = request.form.get('title')
+        content = request.form.get('content')
+
+        new_post = {
+            'id': new_id,
+            'author': author,
+            'title': title,
+            'content': content,
+            'likes': 0
+        }
+        blog_posts.append(new_post)
+
+        with open('posts.json', 'w', encoding='utf-8') as file:
+            json.dump(blog_posts, file, indent=4)
+
+        return redirect(url_for('index'))
+
+    return render_template('add.html')
+
+
+@app.route('/delete/<int:post_id>')
+def delete(post_id):
+    with open('posts.json', 'r', encoding='utf-8') as file:
+        blog_posts = json.load(file)
+
+    blog_posts = [post for post in blog_posts if post['id'] != post_id]
+
+    with open('posts.json', 'w', encoding='utf-8') as file:
+        json.dump(blog_posts, file, indent=4)
+    return redirect(url_for('index'))
+
+
+@app.route('/update/<int:post_id>', methods=['GET', 'POST'])
+def update(post_id):
+    post = fetch_post_by_id(post_id)
+    if post is None:
+        return "Post not found",
+
+    if request.method == 'POST':
+        with open('posts.json', 'r', encoding='utf-8') as file:
+            blog_posts = json.load(file)
+
+        for item in blog_posts:
+            if item['id'] == post_id:
+                item['author'] = request.form.get('author')
+                item['title'] = request.form.get('title')
+                item['content'] = request.form.get('content')
+                break
+
+        with open('posts.json', 'w', encoding='utf-8') as file:
+            json.dump(blog_posts, file, indent=4)
+
+        return redirect(url_for('index'))
+    return render_template('update.html', post=post)
+
+
+@app.route('/like/<int:id>')
+def like(id):
+    with open('posts.json', 'r', encoding='utf-8') as file:
+        blog_posts = json.load(file)
+
+    for post in blog_posts:
+        if post['id'] == id:
+            post['likes'] = post.get('likes', 0) + 1
+            break
+
+    with open('posts.json', 'w', encoding='utf-8') as file:
+        json.dump(blog_posts, file, indent=4)
+
+    return redirect(url_for('index'))
+
+
+if __name__ == '__main__':
+    app.run(host="0.0.0.0", port=5000, debug=True)
